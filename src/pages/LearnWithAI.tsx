@@ -22,18 +22,27 @@ import {
   ArrowLeft,
   Bot,
   User,
-  Lightbulb
+  Lightbulb,
+  LucideIcon
 } from "lucide-react";
 
+interface Subject {
+  id: string;
+  name: string;
+  icon: LucideIcon;
+  color: string;
+  topics: string[];
+}
+
 const LearnWithAI = () => {
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedSummary, setGeneratedSummary] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'ai', content: string}>>([]);
   const [chatInput, setChatInput] = useState("");
 
-  const subjects = [
+  const subjects: Subject[] = [
     { 
       id: 'math', 
       name: 'Mathematics', 
@@ -160,7 +169,7 @@ Top students consistently review basics before advancing to complex topics.
     }, 2000);
   };
 
-  const handleSubjectSelect = (subject: any) => {
+  const handleSubjectSelect = (subject: Subject) => {
     setSelectedSubject(subject);
     setSelectedTopic(null);
     setGeneratedSummary(null);
@@ -169,7 +178,9 @@ Top students consistently review basics before advancing to complex topics.
 
   const handleTopicSelect = (topic: string) => {
     setSelectedTopic(topic);
-    generateSummary(selectedSubject.id, topic);
+    if (selectedSubject) {
+      generateSummary(selectedSubject.id, topic);
+    }
   };
 
   const sendChatMessage = () => {
