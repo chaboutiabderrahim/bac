@@ -60,38 +60,14 @@ const cardVariants = {
     opacity: 1, 
     y: 0,
     scale: 1,
-    rotateY: 0,
-    transition: {
-      type: "spring",
-      stiffness: 120,
-      damping: 20,
-      duration: 0.8
-    }
-  }
-};
-
-const iconVariants = {
-  hover: {
-    scale: 1.2,
-    rotate: 10,
-    transition: {
-      type: "spring",
-      stiffness: 300,
-      damping: 20
-    }
+    rotateY: 0
   }
 };
 
 const valueVariants = {
   hidden: { scale: 0 },
   visible: { 
-    scale: 1,
-    transition: {
-      type: "spring",
-      stiffness: 200,
-      damping: 15,
-      delay: 0.5
-    }
+    scale: 1
   }
 };
 
@@ -107,10 +83,16 @@ export const AnimatedStatsCards = () => {
         <motion.div
           key={stat.title}
           variants={cardVariants}
+          transition={{
+            type: "spring" as const,
+            stiffness: 120,
+            damping: 20,
+            duration: 0.8
+          }}
           whileHover={{ 
             y: -8, 
             scale: 1.05,
-            transition: { type: "spring", stiffness: 300, damping: 20 }
+            transition: { type: "spring" as const, stiffness: 300, damping: 20 }
           }}
           whileTap={{ scale: 0.98 }}
         >
@@ -126,8 +108,15 @@ export const AnimatedStatsCards = () => {
                   {stat.title}
                 </motion.span>
                 <motion.div
-                  variants={iconVariants}
-                  whileHover="hover"
+                  whileHover={{
+                    scale: 1.2,
+                    rotate: 10,
+                    transition: {
+                      type: "spring" as const,
+                      stiffness: 300,
+                      damping: 20
+                    }
+                  }}
                   animate={{
                     y: [0, -5, 0],
                     transition: {
@@ -148,6 +137,12 @@ export const AnimatedStatsCards = () => {
                 variants={valueVariants}
                 initial="hidden"
                 animate="visible"
+                transition={{
+                  type: "spring" as const,
+                  stiffness: 200,
+                  damping: 15,
+                  delay: 0.5
+                }}
               >
                 {stat.value}
               </motion.div>

@@ -29,13 +29,7 @@ const cardVariants = {
   visible: { 
     opacity: 1, 
     y: 0,
-    scale: 1,
-    transition: {
-      type: "spring",
-      stiffness: 100,
-      damping: 15,
-      duration: 0.6
-    }
+    scale: 1
   }
 };
 
@@ -43,12 +37,7 @@ const chartVariants = {
   hidden: { opacity: 0, scale: 0.8 },
   visible: { 
     opacity: 1, 
-    scale: 1,
-    transition: {
-      delay: 0.4,
-      duration: 0.8,
-      ease: "easeOut"
-    }
+    scale: 1
   }
 };
 
@@ -60,7 +49,15 @@ export const AnimatedChartsSection = ({ progressData, recentScores }: AnimatedCh
       initial="hidden"
       animate="visible"
     >
-      <motion.div variants={cardVariants}>
+      <motion.div 
+        variants={cardVariants}
+        transition={{
+          type: "spring" as const,
+          stiffness: 100,
+          damping: 15,
+          duration: 0.6
+        }}
+      >
         <Card className="glass-effect hover:shadow-2xl transition-all duration-500 border-0 bg-gradient-to-br from-card/80 to-card/60 backdrop-blur-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -88,7 +85,14 @@ export const AnimatedChartsSection = ({ progressData, recentScores }: AnimatedCh
             </motion.div>
           </CardHeader>
           <CardContent>
-            <motion.div variants={chartVariants}>
+            <motion.div 
+              variants={chartVariants}
+              transition={{
+                delay: 0.4,
+                duration: 0.8,
+                ease: "easeOut"
+              }}
+            >
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={progressData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
@@ -127,7 +131,15 @@ export const AnimatedChartsSection = ({ progressData, recentScores }: AnimatedCh
         </Card>
       </motion.div>
 
-      <motion.div variants={cardVariants}>
+      <motion.div 
+        variants={cardVariants}
+        transition={{
+          type: "spring" as const,
+          stiffness: 100,
+          damping: 15,
+          duration: 0.6
+        }}
+      >
         <Card className="glass-effect hover:shadow-2xl transition-all duration-500 border-0 bg-gradient-to-br from-card/80 to-card/60 backdrop-blur-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -162,7 +174,14 @@ export const AnimatedChartsSection = ({ progressData, recentScores }: AnimatedCh
             </motion.div>
           </CardHeader>
           <CardContent>
-            <motion.div variants={chartVariants}>
+            <motion.div 
+              variants={chartVariants}
+              transition={{
+                delay: 0.4,
+                duration: 0.8,
+                ease: "easeOut"
+              }}
+            >
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={recentScores}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
