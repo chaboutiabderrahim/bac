@@ -14,7 +14,141 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bac_streams: {
+        Row: {
+          created_at: string
+          id: number
+          name_ar: string
+          name_en: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          name_ar: string
+          name_en: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          name_ar?: string
+          name_en?: string
+        }
+        Relationships: []
+      }
+      bac_subjects: {
+        Row: {
+          created_at: string
+          id: number
+          stream_id: number
+          subject_ar: string
+          subject_en: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          stream_id: number
+          subject_ar: string
+          subject_en: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          stream_id?: number
+          subject_ar?: string
+          subject_en?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bac_subjects_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "bac_streams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exams: {
+        Row: {
+          created_at: string
+          description: string | null
+          exam_type: string
+          file_url: string | null
+          id: string
+          subject_id: number
+          title: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          exam_type: string
+          file_url?: string | null
+          id?: string
+          subject_id: number
+          title: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          exam_type?: string
+          file_url?: string | null
+          id?: string
+          subject_id?: number
+          title?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exams_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "bac_subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      videos: {
+        Row: {
+          created_at: string
+          description: string | null
+          duration: number | null
+          id: string
+          subject_id: number
+          title: string
+          url: string
+          view_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          id?: string
+          subject_id: number
+          title: string
+          url: string
+          view_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          id?: string
+          subject_id?: number
+          title?: string
+          url?: string
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "videos_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "bac_subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
