@@ -1,142 +1,91 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BookOpen, ArrowLeft, Download, Eye, Brain, CheckCircle, Clock, Filter } from "lucide-react";
+import { BookOpen, ArrowLeft, Download, Eye, Brain, CheckCircle, Clock, Filter, GraduationCap } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 // PastExams Component - Archive of official BAC exams with AI assistance
 // Allows students to view, download, and solve exams with AI help
 const PastExams = () => {
+  // State for database data
+  const [streams, setStreams] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [exams, setExams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   // Filter states
+  const [selectedStream, setSelectedStream] = useState<string>("all");
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
 
-  // Mock exam data - in real app this would come from database
-  const examData = [
-    {
-      id: 1,
-      subject: "Mathematics",
-      year: "2023",
-      session: "Principal",
-      duration: "4 hours",
-      difficulty: "Hard",
-      solved: true,
-      score: 85,
-      aiAvailable: true,
-      downloadUrl: "#",
-      topics: ["Algebra", "Geometry", "Calculus"]
-    },
-    {
-      id: 2,
-      subject: "Physics",
-      year: "2023",
-      session: "Principal",
-      duration: "3 hours",
-      difficulty: "Medium",
-      solved: false,
-      score: null,
-      aiAvailable: true,
-      downloadUrl: "#",
-      topics: ["Mechanics", "Optics", "Electricity"]
-    },
-    {
-      id: 3,
-      subject: "Chemistry",
-      year: "2023",
-      session: "Principal",
-      duration: "3 hours",
-      difficulty: "Medium",
-      solved: true,
-      score: 92,
-      aiAvailable: true,
-      downloadUrl: "#",
-      topics: ["Organic Chemistry", "Chemical Reactions"]
-    },
-    {
-      id: 4,
-      subject: "Mathematics",
-      year: "2022",
-      session: "Principal",
-      duration: "4 hours",
-      difficulty: "Hard",
-      solved: false,
-      score: null,
-      aiAvailable: true,
-      downloadUrl: "#",
-      topics: ["Functions", "Probability", "Statistics"]
-    },
-    {
-      id: 5,
-      subject: "Physics",
-      year: "2022",
-      session: "Rattrapage",
-      duration: "3 hours",
-      difficulty: "Easy",
-      solved: true,
-      score: 78,
-      aiAvailable: true,
-      downloadUrl: "#",
-      topics: ["Waves", "Modern Physics"]
-    },
-    {
-      id: 6,
-      subject: "French",
-      year: "2023",
-      session: "Principal",
-      duration: "4 hours",
-      difficulty: "Medium",
-      solved: false,
-      score: null,
-      aiAvailable: false,
-      downloadUrl: "#",
-      topics: ["Literature", "Essay Writing"]
-    },
-    {
-      id: 7,
-      subject: "Mathematics",
-      year: "2021",
-      session: "Principal",
-      duration: "4 hours",
-      difficulty: "Hard",
-      solved: true,
-      score: 88,
-      aiAvailable: true,
-      downloadUrl: "#",
-      topics: ["Complex Numbers", "Integrals"]
-    },
-    {
-      id: 8,
-      subject: "Chemistry",
-      year: "2022",
-      session: "Principal",
-      duration: "3 hours",
-      difficulty: "Medium",
-      solved: false,
-      score: null,
-      aiAvailable: true,
-      downloadUrl: "#",
-      topics: ["Atomic Structure", "Chemical Bonding"]
-    }
-  ];
+  // Fetch data from database
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch streams
+        const { data: streamsData } = await supabase
+          .from('bac_streams')
+          .select('*')
+          .order('name_en');
 
-  // Get unique values for filters
-  const subjects = [...new Set(examData.map(exam => exam.subject))];
-  const years = [...new Set(examData.map(exam => exam.year))].sort().reverse();
+        // Fetch subjects with stream info
+        const { data: subjectsData } = await supabase
+          .from('bac_subjects')
+          .select(`
+            *,
+            bac_streams!inner(name_en, name_ar)
+          `)
+          .order('subject_en');
+
+        // Fetch exams with subject and stream info
+        const { data: examsData } = await supabase
+          .from('exams')
+          .select(`
+            *,
+            bac_subjects!inner(subject_en, subject_ar, bac_streams!inner(name_en, name_ar))
+          `)
+          .order('year', { ascending: false });
+
+        setStreams(streamsData || []);
+        setSubjects(subjectsData || []);
+        setExams(examsData || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load data from database",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Get filtered subjects based on selected stream
+  const filteredSubjects = selectedStream === "all" 
+    ? subjects 
+    : subjects.filter(subject => subject.stream_id === parseInt(selectedStream));
+
+  // Get unique years from exams
+  const years = [...new Set(exams.map(exam => exam.year.toString()))].sort().reverse();
 
   // Filter exams based on selected criteria
-  const filteredExams = examData.filter(exam => {
-    const matchesSubject = selectedSubject === "all" || exam.subject === selectedSubject;
-    const matchesYear = selectedYear === "all" || exam.year === selectedYear;
-    const matchesStatus = selectedStatus === "all" || 
-      (selectedStatus === "solved" && exam.solved) ||
-      (selectedStatus === "unsolved" && !exam.solved);
+  const filteredExams = exams.filter(exam => {
+    const matchesStream = selectedStream === "all" || 
+      exam.bac_subjects.bac_streams.id === parseInt(selectedStream);
+    const matchesSubject = selectedSubject === "all" || 
+      exam.bac_subjects.id === parseInt(selectedSubject);
+    const matchesYear = selectedYear === "all" || exam.year.toString() === selectedYear;
     
-    return matchesSubject && matchesYear && matchesStatus;
+    return matchesStream && matchesSubject && matchesYear;
   });
 
   // Get difficulty color
@@ -164,23 +113,14 @@ const PastExams = () => {
   const handleDownload = (exam: any) => {
     toast({
       title: "Download Started",
-      description: `Downloading ${exam.subject} ${exam.year} exam...`,
+      description: `Downloading ${exam.bac_subjects.subject_en} ${exam.year} exam...`,
     });
   };
 
   const handleSolveWithAI = (exam: any) => {
-    if (!exam.aiAvailable) {
-      toast({
-        title: "AI Not Available",
-        description: "AI assistance is not available for this exam.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     toast({
       title: "AI Assistant Activated",
-      description: `Starting AI-guided solution for ${exam.subject} ${exam.year}`,
+      description: `Starting AI-guided solution for ${exam.bac_subjects.subject_en} ${exam.year}`,
     });
     // In real app, this would navigate to AI-assisted exam solver
   };
@@ -188,10 +128,21 @@ const PastExams = () => {
   const handleViewExam = (exam: any) => {
     toast({
       title: "Opening Exam",
-      description: `Viewing ${exam.subject} ${exam.year} exam`,
+      description: `Viewing ${exam.title}`,
     });
     // In real app, this would open exam viewer
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading BAC structure...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
@@ -227,47 +178,44 @@ const PastExams = () => {
               <CardTitle className="text-sm font-medium text-gray-600">Total Exams</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{examData.length}</div>
+              <div className="text-2xl font-bold">{exams.length}</div>
               <p className="text-sm text-gray-600">Available for practice</p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Solved</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">BAC Streams</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {examData.filter(e => e.solved).length}
+                {streams.length}
               </div>
-              <p className="text-sm text-gray-600">Completed exams</p>
+              <p className="text-sm text-gray-600">Academic tracks</p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Average Score</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Subjects</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">
-                {Math.round(
-                  examData.filter(e => e.solved && e.score).reduce((acc, e) => acc + e.score!, 0) /
-                  examData.filter(e => e.solved && e.score).length
-                )}%
+                {subjects.length}
               </div>
-              <p className="text-sm text-gray-600">Your performance</p>
+              <p className="text-sm text-gray-600">Available subjects</p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">AI Available</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Years Covered</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-purple-600">
-                {examData.filter(e => e.aiAvailable).length}
+                {years.length}
               </div>
-              <p className="text-sm text-gray-600">With AI assistance</p>
+              <p className="text-sm text-gray-600">Exam years</p>
             </CardContent>
           </Card>
         </div>
@@ -283,6 +231,23 @@ const PastExams = () => {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">BAC Stream</label>
+                <Select value={selectedStream} onValueChange={setSelectedStream}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Streams" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Streams</SelectItem>
+                    {streams.map(stream => (
+                      <SelectItem key={stream.id} value={stream.id.toString()}>
+                        {stream.name_en}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Subject</label>
                 <Select value={selectedSubject} onValueChange={setSelectedSubject}>
                   <SelectTrigger>
@@ -290,8 +255,10 @@ const PastExams = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Subjects</SelectItem>
-                    {subjects.map(subject => (
-                      <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                    {filteredSubjects.map(subject => (
+                      <SelectItem key={subject.id} value={subject.id.toString()}>
+                        {subject.subject_en}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -311,20 +278,6 @@ const PastExams = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Status</label>
-                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="solved">Solved</SelectItem>
-                    <SelectItem value="unsolved">Not Solved</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -336,56 +289,46 @@ const PastExams = () => {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="text-lg">{exam.subject}</CardTitle>
+                    <CardTitle className="text-lg">{exam.bac_subjects.subject_en}</CardTitle>
                     <CardDescription className="flex items-center gap-2 mt-1">
                       <span>BAC {exam.year}</span>
                       <span>•</span>
-                      <span>{exam.session}</span>
+                      <span>{exam.exam_type.toUpperCase()}</span>
                     </CardDescription>
                   </div>
-                  {exam.solved && (
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  )}
+                  <div className="text-right">
+                    <Badge className="bg-blue-100 text-blue-800">
+                      <GraduationCap className="h-3 w-3 mr-1" />
+                      {exam.bac_subjects.bac_streams.name_en}
+                    </Badge>
+                  </div>
                 </div>
                 
                 <div className="flex gap-2 mt-3">
-                  <Badge className={getSubjectColor(exam.subject)}>
-                    {exam.subject}
+                  <Badge className={getSubjectColor(exam.bac_subjects.subject_en)}>
+                    {exam.bac_subjects.subject_en}
                   </Badge>
-                  <Badge className={getDifficultyColor(exam.difficulty)}>
-                    {exam.difficulty}
+                  <Badge className="bg-purple-100 text-purple-800">
+                    AI Available
                   </Badge>
-                  {exam.aiAvailable && (
-                    <Badge className="bg-purple-100 text-purple-800">
-                      AI Available
-                    </Badge>
-                  )}
                 </div>
               </CardHeader>
               
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="h-4 w-4" />
-                    Duration: {exam.duration}
+                  <div className="text-sm text-gray-600">
+                    <strong>Title:</strong> {exam.title}
                   </div>
                   
-                  {exam.solved && exam.score && (
-                    <div className="flex items-center justify-between p-2 bg-green-50 rounded">
-                      <span className="text-sm font-medium text-green-800">Your Score:</span>
-                      <span className="text-lg font-bold text-green-600">{exam.score}%</span>
+                  {exam.description && (
+                    <div className="text-sm text-gray-600">
+                      <strong>Description:</strong> {exam.description}
                     </div>
                   )}
                   
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">Topics Covered:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {exam.topics.map((topic, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {topic}
-                        </Badge>
-                      ))}
-                    </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Clock className="h-4 w-4" />
+                    Year: {exam.year}
                   </div>
                 </div>
                 
@@ -412,7 +355,6 @@ const PastExams = () => {
                     
                     <Button 
                       onClick={() => handleSolveWithAI(exam)}
-                      disabled={!exam.aiAvailable}
                       size="sm"
                       className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700"
                     >
