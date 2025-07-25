@@ -2,11 +2,16 @@ import { Link } from "react-router-dom";
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Trophy, Users, Video, Brain, Lightbulb, Target, Sparkles, Bot, MessageSquare } from "lucide-react";
+import { BookOpen, Trophy, Users, Video, Brain, Lightbulb, Target, Sparkles, Bot, MessageSquare, LogOut, User } from "lucide-react";
 import { AnimatedChartsSection } from "@/components/AnimatedChartsSection";
 import { AnimatedStatsCards } from "@/components/AnimatedStatsCards";
+import MobileNav from "@/components/MobileNav";
+import LessonBooking from "@/components/LessonBooking";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
+  const { user, signOut, loading } = useAuth();
+  
   // Mock data for student progress
   const progressData = [
     { subject: 'Math', score: 85 },
@@ -62,13 +67,38 @@ const Index = () => {
                 <p className="text-sm text-muted-foreground">AI-Powered Learning</p>
               </div>
             </div>
-            <nav className="hidden md:flex space-x-6">
-              <Link to="/daily-quiz" className="text-foreground/80 hover:text-primary transition-colors font-medium">Daily Quiz</Link>
-              <Link to="/learn-ai" className="text-foreground/80 hover:text-accent transition-colors font-medium">Learn with AI</Link>
-              <Link to="/videos" className="text-foreground/80 hover:text-primary transition-colors font-medium">Videos</Link>
-              <Link to="/exams" className="text-foreground/80 hover:text-primary transition-colors font-medium">Past Exams</Link>
-              <Link to="/students" className="text-foreground/80 hover:text-primary transition-colors font-medium">Success Stories</Link>
-            </nav>
+            <div className="flex items-center space-x-4">
+              <nav className="hidden md:flex space-x-6">
+                <Link to="/daily-quiz" className="text-foreground/80 hover:text-primary transition-colors font-medium">Daily Quiz</Link>
+                <Link to="/learn-ai" className="text-foreground/80 hover:text-accent transition-colors font-medium">Learn with AI</Link>
+                <Link to="/videos" className="text-foreground/80 hover:text-primary transition-colors font-medium">Videos</Link>
+                <Link to="/exams" className="text-foreground/80 hover:text-primary transition-colors font-medium">Past Exams</Link>
+                <Link to="/students" className="text-foreground/80 hover:text-primary transition-colors font-medium">Success Stories</Link>
+              </nav>
+              
+              {/* Desktop Auth Actions */}
+              <div className="hidden md:flex items-center space-x-2">
+                {user ? (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-muted-foreground">{user.email}</span>
+                    <Button onClick={signOut} variant="outline" size="sm">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign Out
+                    </Button>
+                  </div>
+                ) : (
+                  <Link to="/auth">
+                    <Button size="sm" className="ai-gradient text-white">
+                      <User className="h-4 w-4 mr-2" />
+                      Sign In
+                    </Button>
+                  </Link>
+                )}
+              </div>
+              
+              {/* Mobile Navigation */}
+              <MobileNav />
+            </div>
           </div>
         </div>
       </motion.header>
@@ -172,6 +202,16 @@ const Index = () => {
           progressData={progressData}
           recentScores={recentScores}
         />
+
+        {/* Lesson Booking Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.0, duration: 0.8 }}
+          className="mb-8"
+        >
+          <LessonBooking />
+        </motion.div>
 
         {/* Enhanced Quick Access Section */}
         <motion.div 
