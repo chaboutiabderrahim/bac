@@ -108,6 +108,77 @@ export type Database = {
           },
         ]
       }
+      lesson_bookings: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          status: string
+          student_id: string
+          subject: string
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          status?: string
+          student_id: string
+          subject: string
+          topic: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          status?: string
+          student_id?: string
+          subject?: string
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_bookings_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      students: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+          whatsapp: string
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          id?: string
+          status: string
+          updated_at?: string
+          user_id: string
+          whatsapp: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       videos: {
         Row: {
           created_at: string
