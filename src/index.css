@@ -202,4 +202,57 @@ All colors MUST be HSL.
   .glow-effect:hover::before {
     left: 100%;
   }
+
+  /* Enhanced security indicators */
+  .security-badge {
+    @apply inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full;
+    background: linear-gradient(135deg, hsl(var(--success-color)), hsl(var(--info-color)));
+    color: white;
+  }
+
+  /* Accessible loading states */
+  .loading-skeleton {
+    @apply bg-gradient-to-r from-muted via-muted/50 to-muted;
+    animation: loading-shimmer 2s infinite;
+  }
+
+  @keyframes loading-shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+  }
+
+  /* Enhanced focus indicators for accessibility */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  /* Smooth transitions for better UX */
+  .transition-enhanced {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Mobile-first responsive utilities */
+  @media (max-width: 768px) {
+    .mobile-padding {
+      @apply px-4 py-3;
+    }
+    
+    .mobile-text {
+      @apply text-sm leading-relaxed;
+    }
+  }
+
+  /* Dark mode enhancements */
+  .dark .glass-effect {
+    backdrop-filter: blur(20px) saturate(150%);
+  }
+
+  /* Performance optimized animations */
+  .will-change-auto {
+    will-change: auto;
+  }
+
+  .will-change-transform {
+    will-change: transform;
+  }
 }

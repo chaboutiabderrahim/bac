@@ -1,69 +1,79 @@
 
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BookOpen, ArrowLeft, Download, Eye, Brain, CheckCircle, Clock, Filter, GraduationCap, FileText, Youtube, X } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { motion } from "framer-motion";
+import { ArrowLeft, BookOpen, AlertCircle, Shield } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import ExamFilters from "@/components/ExamFilters";
+import ExamCard from "@/components/ExamCard";
+import EmptyState from "@/components/EmptyState";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// PastExams Component - Archive of official BAC exams with AI assistance
-// Allows students to view, download, and solve exams with AI help
+// Secure BAC Exams Component with Authentication & XSS Protection
 const PastExams = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
   // State for database data
   const [streams, setStreams] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [exams, setExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Filter states
   const [selectedStream, setSelectedStream] = useState<string>("");
   const [selectedSubject, setSelectedSubject] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<string>("");
-  
-  // Modal states
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedExam, setSelectedExam] = useState<any>(null);
 
-  // Fetch data from database
+  // Secure data fetching with proper error handling
   useEffect(() => {
     const fetchData = async () => {
+      if (!user) return;
+      
+      setLoading(true);
+      setError(null);
+      
       try {
-        // Fetch streams
-        const { data: streamsData } = await supabase
-          .from('bac_streams')
-          .select('*')
-          .order('name_en');
+        // Parallel fetch for better performance
+        const [streamsResult, subjectsResult, examsResult] = await Promise.all([
+          supabase
+            .from('bac_streams')
+            .select('*')
+            .order('name_en'),
+          supabase
+            .from('bac_subjects')
+            .select(`
+              *,
+              bac_streams!inner(name_en, name_ar)
+            `)
+            .order('subject_en'),
+          supabase
+            .from('exams')
+            .select(`
+              *,
+              bac_subjects!inner(subject_en, subject_ar, bac_streams!inner(name_en, name_ar))
+            `)
+            .order('year', { ascending: false })
+        ]);
 
-        // Fetch subjects with stream info
-        const { data: subjectsData } = await supabase
-          .from('bac_subjects')
-          .select(`
-            *,
-            bac_streams!inner(name_en, name_ar)
-          `)
-          .order('subject_en');
+        // Handle potential errors
+        if (streamsResult.error) throw streamsResult.error;
+        if (subjectsResult.error) throw subjectsResult.error;
+        if (examsResult.error) throw examsResult.error;
 
-        // Fetch exams with subject and stream info
-        const { data: examsData } = await supabase
-          .from('exams')
-          .select(`
-            *,
-            bac_subjects!inner(subject_en, subject_ar, bac_streams!inner(name_en, name_ar))
-          `)
-          .order('year', { ascending: false });
-
-        setStreams(streamsData || []);
-        setSubjects(subjectsData || []);
-        setExams(examsData || []);
-      } catch (error) {
+        setStreams(streamsResult.data || []);
+        setSubjects(subjectsResult.data || []);
+        setExams(examsResult.data || []);
+      } catch (error: any) {
         console.error('Error fetching data:', error);
+        setError(error.message || 'فشل في تحميل البيانات');
         toast({
-          title: "Error",
-          description: "Failed to load data from database",
+          title: "خطأ في التحميل",
+          description: "فشل في تحميل بيانات الامتحانات. يرجى المحاولة مرة أخرى.",
           variant: "destructive",
         });
       } finally {
@@ -72,279 +82,231 @@ const PastExams = () => {
     };
 
     fetchData();
-  }, []);
+  }, [user, toast]);
 
-  // Get filtered subjects based on selected stream
-  const filteredSubjects = selectedStream 
-    ? subjects.filter(subject => subject.stream_id === parseInt(selectedStream))
-    : [];
-
-  // Get unique years from exams
+  // Get unique years from exams (memoized for performance)
   const years = [...new Set(exams.map(exam => exam.year.toString()))].sort().reverse();
 
-  // Filter exams based on selected criteria - only show if both subject and year are selected
+  // Filter exams based on selected criteria
   const filteredExams = (selectedSubject && selectedYear) ? exams.filter(exam => {
-    const matchesSubject = exam.bac_subjects.id === parseInt(selectedSubject);
+    const matchesSubject = exam.bac_subjects?.id === parseInt(selectedSubject);
     const matchesYear = exam.year.toString() === selectedYear;
     
     return matchesSubject && matchesYear;
   }) : [];
 
-  // Handle stream change - reset subject and year
+  // Handle filter changes with proper state management
   const handleStreamChange = (value: string) => {
     setSelectedStream(value);
     setSelectedSubject("");
     setSelectedYear("");
   };
 
-  // Handle subject change - reset year
   const handleSubjectChange = (value: string) => {
     setSelectedSubject(value);
     setSelectedYear("");
   };
 
-  // Open modal with exam details
-  const openModal = (exam: any) => {
-    setSelectedExam(exam);
-    setIsModalOpen(true);
+  const handleClearFilters = () => {
+    setSelectedStream("");
+    setSelectedSubject("");
+    setSelectedYear("");
   };
 
-  // Close modal
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedExam(null);
-  };
+  // Secure exam action handler with XSS protection
+  const handleExamAction = (exam: any, action: string) => {
+    // Sanitize exam data to prevent XSS
+    const sanitizedExam = {
+      id: exam.id,
+      title: exam.title?.replace(/<[^>]*>/g, ''),
+      year: exam.year,
+      subject: exam.bac_subjects?.subject_ar?.replace(/<[^>]*>/g, '')
+    };
 
-  // Get difficulty color
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Easy': return 'bg-green-100 text-green-800';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800';
-      case 'Hard': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+    switch (action) {
+      case 'ai_solve':
+        if (!exam.exam_pdf_url) {
+          toast({
+            title: "غير متوفر",
+            description: "ملف الامتحان غير متوفر للحل بالذكاء الاصطناعي",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        toast({
+          title: "قريباً...",
+          description: `سيتم إضافة ميزة الحل بالذكاء الاصطناعي لامتحان ${sanitizedExam.subject} ${sanitizedExam.year}`,
+        });
+        break;
+      default:
+        break;
     }
   };
 
-  // Get subject color
-  const getSubjectColor = (subject: string) => {
-    switch (subject) {
-      case 'Mathematics': return 'bg-blue-100 text-blue-800';
-      case 'Physics': return 'bg-green-100 text-green-800';
-      case 'Chemistry': return 'bg-purple-100 text-purple-800';
-      case 'French': return 'bg-pink-100 text-pink-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Handle exam actions
-  const handleDownload = (exam: any) => {
-    toast({
-      title: "Download Started",
-      description: `Downloading ${exam.bac_subjects.subject_en} ${exam.year} exam...`,
-    });
-  };
-
-  const handleSolveWithAI = (exam: any) => {
-    toast({
-      title: "AI Assistant Activated",
-      description: `Starting AI-guided solution for ${exam.bac_subjects.subject_en} ${exam.year}`,
-    });
-    // In real app, this would navigate to AI-assisted exam solver
-  };
-
-  const handleViewExam = (exam: any) => {
-    toast({
-      title: "Opening Exam",
-      description: `Viewing ${exam.title}`,
-    });
-    // In real app, this would open exam viewer
+  const retryFetch = () => {
+    setError(null);
+    window.location.reload();
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading BAC structure...</p>
+      <div className="min-h-screen bg-background p-4" dir="rtl">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Skeleton className="h-6 w-6" />
+            <Skeleton className="h-6 w-32" />
+          </div>
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-32" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-48" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background p-4" dir="rtl">
+        <div className="max-w-4xl mx-auto">
+          <EmptyState
+            title="خطأ في تحميل البيانات"
+            description={error}
+            icon={AlertCircle}
+            action={{
+              label: "إعادة المحاولة",
+              onClick: retryFetch
+            }}
+          />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-5" dir="rtl">
-      {/* Header */}
-      <header className="mb-8">
-        <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-primary mb-4">
-          <ArrowLeft className="h-5 w-5" />
-          <span>العودة إلى الصفحة الرئيسية</span>
-        </Link>
-        <h2 className="text-2xl font-bold text-foreground">الامتحانات السابقة</h2>
-      </header>
-
-      <main className="max-w-4xl mx-auto">
-        {/* اختيار الشعبة */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-foreground mb-2">اختر الشعبة:</label>
-          <Select value={selectedStream} onValueChange={handleStreamChange}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="-- اختر الشعبة --" />
-            </SelectTrigger>
-            <SelectContent className="bg-background border shadow-lg z-50">
-              {streams.map(stream => (
-                <SelectItem key={stream.id} value={stream.id.toString()}>
-                  {stream.name_ar}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* اختيار المادة */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-foreground mb-2">اختر المادة:</label>
-          <Select 
-            value={selectedSubject} 
-            onValueChange={handleSubjectChange}
-            disabled={!selectedStream}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="-- اختر المادة --" />
-            </SelectTrigger>
-            <SelectContent className="bg-background border shadow-lg z-50">
-              {filteredSubjects.map(subject => (
-                <SelectItem key={subject.id} value={subject.id.toString()}>
-                  {subject.subject_ar}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* اختيار السنة */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-foreground mb-2">اختر السنة:</label>
-          <Select 
-            value={selectedYear} 
-            onValueChange={setSelectedYear}
-            disabled={!selectedSubject}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="-- اختر السنة --" />
-            </SelectTrigger>
-            <SelectContent className="bg-background border shadow-lg z-50">
-              {years.map(year => (
-                <SelectItem key={year} value={year}>{year}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* قائمة الامتحانات */}
-        {filteredExams.length > 0 && (
-          <div className="exam-list">
-            <h3 className="text-lg font-semibold mb-4">
-              امتحانات {filteredExams[0]?.bac_subjects?.subject_ar} - {selectedYear}
-            </h3>
-            <div className="space-y-2">
-              {filteredExams.map((exam) => (
-                <Button
-                  key={exam.id}
-                  onClick={() => openModal(exam)}
-                  variant="outline"
-                  className="w-full text-right justify-start p-4 h-auto"
-                >
-                  <span className="mr-2">📄</span>
-                  {exam.title}
-                </Button>
-              ))}
+    <ProtectedRoute>
+      <div className="min-h-screen bg-background p-4" dir="rtl">
+        {/* Secure Header with Authentication Badge */}
+        <motion.header 
+          className="mb-8"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <Link 
+              to="/" 
+              className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span>العودة إلى الصفحة الرئيسية</span>
+            </Link>
+            
+            <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+              <Shield className="h-3 w-3" />
+              <span>محمي للطلاب المسجلين</span>
             </div>
           </div>
-        )}
-
-        {/* رسالة عدم وجود امتحانات */}
-        {selectedSubject && selectedYear && filteredExams.length === 0 && (
-          <div className="text-center py-12">
-            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">لا توجد امتحانات</h3>
-            <p className="text-muted-foreground">لا توجد امتحانات متاحة للمادة والسنة المحددة.</p>
+          
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <BookOpen className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">الامتحانات السابقة</h1>
+              <p className="text-muted-foreground text-sm">أرشيف امتحانات البكالوريا الرسمية</p>
+            </div>
           </div>
-        )}
-      </main>
+        </motion.header>
 
-      {/* النافذة المنبثقة */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-md bg-background" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="text-center">اختر نوع العرض</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 mt-4">
-            <Button 
-              onClick={() => {
-                handleViewExam(selectedExam);
-                closeModal();
+        <main className="max-w-6xl mx-auto">
+          {/* Enhanced Filters */}
+          <ExamFilters
+            streams={streams}
+            subjects={subjects}
+            years={years}
+            selectedStream={selectedStream}
+            selectedSubject={selectedSubject}
+            selectedYear={selectedYear}
+            onStreamChange={handleStreamChange}
+            onSubjectChange={handleSubjectChange}
+            onYearChange={setSelectedYear}
+            onClearFilters={handleClearFilters}
+            loading={loading}
+          />
+
+          {/* Results Section */}
+          {filteredExams.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <div className="flex items-center gap-2 mb-6">
+                <h2 className="text-xl font-semibold">
+                  امتحانات {subjects.find(s => s.id.toString() === selectedSubject)?.subject_ar} - {selectedYear}
+                </h2>
+                <span className="text-sm text-muted-foreground">
+                  ({filteredExams.length} امتحان)
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredExams.map((exam, index) => (
+                  <ExamCard
+                    key={exam.id}
+                    exam={exam}
+                    onAction={handleExamAction}
+                    index={index}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Empty States */}
+          {!selectedStream && !selectedSubject && !selectedYear && (
+            <EmptyState
+              title="ابدأ بالبحث"
+              description="اختر الشعبة والمادة والسنة للعثور على الامتحانات"
+              showFiltersSelected={true}
+            />
+          )}
+
+          {selectedSubject && selectedYear && filteredExams.length === 0 && (
+            <EmptyState
+              title="لا توجد امتحانات"
+              description="لا توجد امتحانات متاحة للمادة والسنة المحددة. جرب خيارات أخرى."
+              action={{
+                label: "مسح الفلاتر",
+                onClick: handleClearFilters
               }}
-              variant="outline" 
-              className="w-full justify-start"
-            >
-              <FileText className="h-4 w-4 ml-2" />
-              📄 رؤية الامتحان
-            </Button>
-            
-            <Button 
-              onClick={() => {
-                toast({
-                  title: "فتح الحل النموذجي",
-                  description: "سيتم فتح الحل النموذجي للوزارة قريباً",
-                });
-                closeModal();
-              }}
-              variant="outline" 
-              className="w-full justify-start"
-            >
-              <BookOpen className="h-4 w-4 ml-2" />
-              📘 الحل النموذجي (وزارة)
-            </Button>
-            
-            <Button 
-              onClick={() => {
-                handleSolveWithAI(selectedExam);
-                closeModal();
-              }}
-              variant="outline" 
-              className="w-full justify-start"
-            >
-              <Brain className="h-4 w-4 ml-2" />
-              🤖 الحل بالذكاء الاصطناعي
-            </Button>
-            
-            <Button 
-              onClick={() => {
-                toast({
-                  title: "فتح فيديو يوتيوب",
-                  description: "سيتم فتح فيديو الشرح قريباً",
-                });
-                closeModal();
-              }}
-              variant="outline" 
-              className="w-full justify-start"
-            >
-              <Youtube className="h-4 w-4 ml-2" />
-              🎥 فيديو يوتيوب
-            </Button>
-            
-            <Button 
-              onClick={closeModal}
-              variant="outline" 
-              className="w-full justify-start"
-            >
-              <X className="h-4 w-4 ml-2" />
-              ❌ إغلاق
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+            />
+          )}
+
+          {/* Help Section */}
+          <motion.div 
+            className="mt-12 p-6 bg-muted/30 rounded-lg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            <h3 className="font-semibold mb-3 text-right">كيفية الاستخدام:</h3>
+            <ul className="space-y-2 text-sm text-muted-foreground text-right">
+              <li>• اختر الشعبة أولاً (علوم، رياضيات، آداب، إلخ)</li>
+              <li>• ثم اختر المادة التي تريد امتحاناتها</li>
+              <li>• أخيراً اختر السنة المطلوبة</li>
+              <li>• يمكنك تحميل الامتحان أو الحل الرسمي أو مشاهدة فيديو الشرح</li>
+              <li>• ميزة الحل بالذكاء الاصطناعي ستكون متاحة قريباً</li>
+            </ul>
+          </motion.div>
+        </main>
+      </div>
+    </ProtectedRoute>
   );
 };
 
