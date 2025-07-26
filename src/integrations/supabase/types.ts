@@ -69,34 +69,43 @@ export type Database = {
       }
       exams: {
         Row: {
+          ai_solution: string | null
           created_at: string
           description: string | null
+          exam_pdf_url: string | null
           exam_type: string
-          file_url: string | null
           id: string
+          official_solution_pdf_url: string | null
           subject_id: number
           title: string
           year: number
+          youtube_url: string | null
         }
         Insert: {
+          ai_solution?: string | null
           created_at?: string
           description?: string | null
+          exam_pdf_url?: string | null
           exam_type: string
-          file_url?: string | null
           id?: string
+          official_solution_pdf_url?: string | null
           subject_id: number
           title: string
           year: number
+          youtube_url?: string | null
         }
         Update: {
+          ai_solution?: string | null
           created_at?: string
           description?: string | null
+          exam_pdf_url?: string | null
           exam_type?: string
-          file_url?: string | null
           id?: string
+          official_solution_pdf_url?: string | null
           subject_id?: number
           title?: string
           year?: number
+          youtube_url?: string | null
         }
         Relationships: [
           {
