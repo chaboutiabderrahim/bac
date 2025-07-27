@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage_logs: {
+        Row: {
+          created_at: string
+          id: string
+          message_count: number
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_count?: number
+          usage_date?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_count?: number
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bac_streams: {
         Row: {
           created_at: string
@@ -160,6 +184,7 @@ export type Database = {
           created_at: string
           id: string
           message: string | null
+          score: number | null
           status: string
           student_id: string
           subject: string
@@ -170,6 +195,7 @@ export type Database = {
           created_at?: string
           id?: string
           message?: string | null
+          score?: number | null
           status?: string
           student_id: string
           subject: string
@@ -180,6 +206,7 @@ export type Database = {
           created_at?: string
           id?: string
           message?: string | null
+          score?: number | null
           status?: string
           student_id?: string
           subject?: string
@@ -272,6 +299,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_update_user_status: {
+        Args: { target_user_id: string; new_status: string }
+        Returns: boolean
+      }
+      check_ai_usage_limit: {
+        Args: { user_uuid: string; daily_limit?: number }
+        Returns: boolean
+      }
+      increment_ai_usage: {
+        Args: { user_uuid: string }
+        Returns: number
+      }
       validate_url: {
         Args: { url: string }
         Returns: boolean

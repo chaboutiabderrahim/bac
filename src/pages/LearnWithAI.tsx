@@ -1,11 +1,13 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Brain, 
   BookOpen, 
@@ -23,8 +25,13 @@ import {
   Bot,
   User,
   Lightbulb,
+  Clock,
+  AlertTriangle,
   LucideIcon
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Subject {
   id: string;
@@ -35,12 +42,75 @@ interface Subject {
 }
 
 const LearnWithAI = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedSummary, setGeneratedSummary] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'ai', content: string}>>([]);
   const [chatInput, setChatInput] = useState("");
+  
+  // AI Usage tracking
+  const [dailyUsage, setDailyUsage] = useState(0);
+  const [usageLoading, setUsageLoading] = useState(true);
+  const DAILY_LIMIT = 20;
+
+  // Load daily usage on component mount
+  useEffect(() => {
+    const loadDailyUsage = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('ai_usage_logs')
+          .select('message_count')
+          .eq('user_id', user.id)
+          .eq('usage_date', new Date().toISOString().split('T')[0])
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error loading usage:', error);
+          return;
+        }
+
+        setDailyUsage(data?.message_count || 0);
+      } catch (err) {
+        console.error('Error:', err);
+      } finally {
+        setUsageLoading(false);
+      }
+    };
+
+    loadDailyUsage();
+  }, [user]);
+
+  // Check if user can send message
+  const canSendMessage = dailyUsage < DAILY_LIMIT;
+  const remainingMessages = DAILY_LIMIT - dailyUsage;
+
+  // Track AI usage
+  const trackAIUsage = async () => {
+    if (!user) return false;
+    
+    try {
+      const { data, error } = await supabase.rpc('increment_ai_usage', {
+        user_uuid: user.id
+      });
+
+      if (error) {
+        console.error('Error tracking usage:', error);
+        return false;
+      }
+
+      setDailyUsage(data);
+      return true;
+    } catch (err) {
+      console.error('Error:', err);
+      return false;
+    }
+  };
 
   const subjects: Subject[] = [
     { 
@@ -183,8 +253,19 @@ Top students consistently review basics before advancing to complex topics.
     }
   };
 
-  const sendChatMessage = () => {
-    if (!chatInput.trim()) return;
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || !canSendMessage) return;
+    
+    // Track usage first
+    const usageTracked = await trackAIUsage();
+    if (!usageTracked) {
+      toast({
+        title: "Error",
+        description: "Failed to track message usage. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     const newMessages = [
       ...chatMessages,
@@ -193,6 +274,15 @@ Top students consistently review basics before advancing to complex topics.
     
     setChatMessages(newMessages);
     setChatInput("");
+    
+    // Check if user has reached limit after this message
+    if (dailyUsage >= DAILY_LIMIT) {
+      toast({
+        title: "Daily limit reached",
+        description: "You've used all 20 AI messages for today. Limit resets tomorrow!",
+        variant: "destructive",
+      });
+    }
     
     // Simulate AI response
     setTimeout(() => {
@@ -235,9 +325,25 @@ Top students consistently review basics before advancing to complex topics.
               <div className="ai-gradient p-2 rounded-xl">
                 <Brain className="h-6 w-6 text-white" />
               </div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Learn with AI
-              </h1>
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  Learn with AI
+                </h1>
+                {!usageLoading && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">
+                      {remainingMessages} messages left today
+                    </span>
+                    <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary transition-all duration-300"
+                        style={{ width: `${(dailyUsage / DAILY_LIMIT) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -408,6 +514,25 @@ Top students consistently review basics before advancing to complex topics.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Usage warning */}
+                    {!canSendMessage && (
+                      <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                          You've reached your daily limit of 20 AI messages. Limit resets tomorrow!
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
+                    {canSendMessage && remainingMessages <= 5 && (
+                      <Alert>
+                        <Clock className="h-4 w-4" />
+                        <AlertDescription>
+                          Only {remainingMessages} messages remaining today. Use them wisely!
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
                     <div className="h-64 overflow-y-auto space-y-3 p-3 bg-muted/20 rounded-lg">
                       {chatMessages.length === 0 ? (
                         <div className="text-center text-muted-foreground text-sm py-8">
@@ -439,13 +564,18 @@ Top students consistently review basics before advancing to complex topics.
 
                     <div className="flex gap-2">
                       <Input
-                        placeholder="Ask about this topic..."
+                        placeholder={canSendMessage ? "Ask about this topic..." : "Daily limit reached"}
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
+                        onKeyPress={(e) => e.key === 'Enter' && canSendMessage && sendChatMessage()}
                         className="text-sm"
+                        disabled={!canSendMessage}
                       />
-                      <Button size="sm" onClick={sendChatMessage} disabled={!chatInput.trim()}>
+                      <Button 
+                        size="sm" 
+                        onClick={sendChatMessage} 
+                        disabled={!chatInput.trim() || !canSendMessage}
+                      >
                         <Send className="h-3 w-3" />
                       </Button>
                     </div>
