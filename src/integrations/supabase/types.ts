@@ -67,6 +67,44 @@ export type Database = {
           },
         ]
       }
+      exam_access_logs: {
+        Row: {
+          access_type: string
+          created_at: string | null
+          exam_id: string | null
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          access_type: string
+          created_at?: string | null
+          exam_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          access_type?: string
+          created_at?: string | null
+          exam_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_access_logs_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exams: {
         Row: {
           ai_solution: string | null
@@ -234,7 +272,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      validate_url: {
+        Args: { url: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
