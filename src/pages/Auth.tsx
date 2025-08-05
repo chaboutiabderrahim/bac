@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Brain, User, Phone, Package } from 'lucide-react';
+import { Brain, User, Phone, Package, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import RoleBasedRedirect from '@/components/RoleBasedRedirect';
 
 const Auth = () => {
   const { user, signUp, signIn, loading } = useAuth();
@@ -17,13 +17,14 @@ const Auth = () => {
     password: '',
     full_name: '',
     whatsapp: '',
-    status: 'offer1'
+    status: 'offer1',
+    role: 'regular_student' as 'regular_student' | 'previous_student' | 'admin'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Redirect if already authenticated
   if (user && !loading) {
-    return <Navigate to="/" replace />;
+    return <RoleBasedRedirect />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,7 +36,8 @@ const Auth = () => {
         const { error } = await signUp(formData.email, formData.password, {
           full_name: formData.full_name,
           whatsapp: formData.whatsapp,
-          status: formData.status
+          status: formData.status,
+          role: formData.role
         });
         if (!error) {
           setIsSignUp(false);
@@ -109,6 +111,22 @@ const Auth = () => {
                       required
                       placeholder="+213 xxx xxx xxx"
                     />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="role" className="flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4" />
+                      Account Type
+                    </Label>
+                    <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select account type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="regular_student">Regular Student (Current BAC)</SelectItem>
+                        <SelectItem value="previous_student">Previous Student (BAC Graduate)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   
                   <div className="space-y-2">
