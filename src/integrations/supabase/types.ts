@@ -223,11 +223,59 @@ export type Database = {
           },
         ]
       }
+      student_pdfs: {
+        Row: {
+          created_at: string
+          description: string | null
+          file_name: string
+          file_size: number | null
+          file_url: string
+          id: string
+          is_public: boolean
+          student_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          file_name: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          is_public?: boolean
+          student_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          is_public?: boolean
+          student_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_pdfs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
           created_at: string
           full_name: string
           id: string
+          role: Database["public"]["Enums"]["user_role"]
           status: string
           updated_at: string
           user_id: string
@@ -237,6 +285,7 @@ export type Database = {
           created_at?: string
           full_name: string
           id?: string
+          role?: Database["public"]["Enums"]["user_role"]
           status: string
           updated_at?: string
           user_id: string
@@ -246,12 +295,60 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          role?: Database["public"]["Enums"]["user_role"]
           status?: string
           updated_at?: string
           user_id?: string
           whatsapp?: string
         }
         Relationships: []
+      }
+      teaching_schedules: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_time: string
+          id: string
+          is_active: boolean
+          scheduled_date: string
+          start_time: string
+          student_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_time: string
+          id?: string
+          is_active?: boolean
+          scheduled_date: string
+          start_time: string
+          student_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          scheduled_date?: string
+          start_time?: string
+          student_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teaching_schedules_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       videos: {
         Row: {
@@ -307,6 +404,10 @@ export type Database = {
         Args: { user_uuid: string; daily_limit?: number }
         Returns: boolean
       }
+      get_user_role: {
+        Args: { user_uuid: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
       increment_ai_usage: {
         Args: { user_uuid: string }
         Returns: number
@@ -317,7 +418,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "regular_student" | "previous_student" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -444,6 +545,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["regular_student", "previous_student", "admin"],
+    },
   },
 } as const
